@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Тест подключения лампы</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Layout: one phone-sized app screen centered on a neutral backdrop; full-bleed on phones. Single light theme by choice — it imitates a light mobile app. */
+  :root {
+    --ink: #1F1F1F; --sec: #6E6E73; --ter: #A1A1A6; --line: #E5E5EA; --soft: #F4F4F6;
+    --y: #FFCC00; --warnBg: #FFF5D6; --amb: #D98200; --errBg: #FDECEC; --err: #D93025;
+    --ok: #1E9E5A; --okBg: #E7F6EE; --blue: #2F80ED; --backdrop: #2B2B2D; --white: #FFFFFF;
+    --sysBg: #F2F2F7; --sysChip: #E4E4EA; --scrim: rgba(0,0,0,.4);
+    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: var(--font); background: var(--backdrop); color: var(--ink);
+    min-height: 100vh; display: flex; justify-content: center; align-items: center;
+    padding-block: 32px; padding-inline: 16px;
+  }
+  button { font-family: inherit; }
+
+  .phone {
+    width: 360px; height: 740px; max-height: calc(100vh - 64px); background: var(--white); color: var(--ink);
+    border-radius: 28px; overflow: hidden; position: relative; flex: none;
+    box-shadow: 0 0 0 10px #111, 0 30px 60px rgba(0,0,0,.45);
+  }
+  @media (max-width: 500px) {
+    html, body { height: 100%; }
+    body { padding: 0; min-height: 0; align-items: stretch; }
+    .phone { width: 100%; height: 100%; max-height: none; border-radius: 0; box-shadow: none; }
+  }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--white); }
+  .screen.fwd { animation: inF .22s ease-out; }
+  .screen.bwd { animation: inB .22s ease-out; }
+  @keyframes inF { from { transform: translateX(28px); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes inB { from { transform: translateX(-28px); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes up { from { transform: translateY(24px); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes blink { 50% { opacity: .15 } }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .screen.fwd, .screen.bwd, .toast, .disc-body, .spin, .blinkbar, .sheet, .scrim { animation: none; }
+    .okmark .ring, .okmark .tick { animation: none; stroke-dashoffset: 0; }
+  }
+
+  header.bar { height: 56px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 4px; border-bottom: 1px solid var(--line); }
+  header.bar h1 { flex: 1; font-size: 17px; font-weight: 500; line-height: 22px; }
+  .iconbtn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; cursor: pointer; border-radius: 12px; color: var(--ink); }
+  .iconbtn:hover { background: var(--soft); }
+  .iconbtn:focus-visible, .btn:focus-visible, .link:focus-visible, .net:focus-visible, .disc-head:focus-visible, .pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  .body { flex: 1; overflow-y: auto; padding: 24px 24px 8px; display: flex; flex-direction: column; gap: 16px; }
+  .body.center { align-items: center; text-align: center; }
+  .actions { flex: none; padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+  h2 { font-size: 22px; line-height: 28px; font-weight: 600; text-wrap: balance; }
+  .lead { font-size: 15px; line-height: 21px; color: var(--sec); }
+
+  .btn { height: 48px; border-radius: 12px; border: 0; font-size: 16px; line-height: 22px; font-weight: 500; color: var(--ink);
+    display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; width: 100%; transition: filter .15s, transform .06s; }
+  .btn:active { transform: scale(.99); }
+  .btn.primary { background: var(--y); }
+  .btn.primary:hover { filter: brightness(.96); }
+  .btn.secondary { background: var(--white); box-shadow: inset 0 0 0 1.5px var(--y); }
+  .btn.secondary:hover { background: #FFFBEA; }
+  .btn:disabled { background: var(--soft); color: var(--ter); cursor: not-allowed; filter: none; }
+  .link { background: none; border: 0; font-size: 15px; line-height: 20px; font-weight: 500; color: var(--sec); padding: 8px; cursor: pointer; border-radius: 8px; }
+  .link:hover { color: var(--ink); }
+
+  .card { border: 1px solid var(--line); border-radius: 12px; text-align: left; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 15px 16px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .grow { flex: 1; min-width: 0; }
+  .lbl { font-size: 12px; line-height: 16px; color: var(--sec); }
+  .val { font-size: 16px; line-height: 22px; font-weight: 500; color: var(--ink); }
+  input.val { border: 0; outline: 0; width: 100%; font-family: inherit; padding: 0; background: none; }
+  .chip { font-size: 12px; line-height: 16px; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+  .chip.ok { color: var(--ok); background: var(--okBg); }
+  .chip.warn { color: #B86E00; background: var(--warnBg); }
+  .status { display: flex; gap: 8px; align-items: center; font-size: 14px; line-height: 20px; font-weight: 500; color: var(--ok); }
+
+  .notice { display: flex; gap: 12px; padding: 14px; border-radius: 12px; background: var(--warnBg); text-align: left; }
+  .notice svg { flex: none; }
+  .notice b { display: block; font-size: 15px; line-height: 20px; font-weight: 600; margin-bottom: 4px; }
+  .notice p { font-size: 14px; line-height: 20px; }
+  .stage-chip { display: flex; gap: 10px; align-items: center; padding: 10px 14px 10px 12px; border-radius: 10px; background: var(--errBg); font-size: 14px; line-height: 20px; font-weight: 500; text-align: left; }
+  .stage-chip svg { flex: none; }
+
+  .steps { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+  .steps h3 { font-size: 15px; line-height: 20px; font-weight: 600; }
+  .step { display: flex; gap: 12px; font-size: 14px; line-height: 20px; }
+  .num { flex: none; width: 24px; height: 24px; border-radius: 12px; background: var(--soft); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+  .step b { display: block; font-size: 15px; font-weight: 500; }
+  .step .s { color: var(--sec); }
+  .pad { padding: 16px; }
+
+  .stages { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-align: left; }
+  .st { display: flex; gap: 14px; padding: 16px; transition: background .2s; }
+  .st svg { flex: none; }
+  .st + .st { border-top: 1px solid var(--line); }
+  .st.error { background: var(--errBg); }
+  .st .t { font-size: 16px; line-height: 22px; font-weight: 500; }
+  .st .d { font-size: 14px; line-height: 20px; color: var(--sec); }
+  .st.pending .t, .st.pending .d { color: var(--ter); font-weight: 400; }
+  .st.error .d { color: var(--err); }
+  .spin { animation: spin .9s linear infinite; }
+
+  .hero { padding-top: 8px; display: grid; place-items: center; }
+  .device { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0 8px; }
+  .blinkbar { width: 20px; height: 3px; border-radius: 2px; background: var(--blue); animation: blink .5s steps(1) infinite; }
+  .hint { display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 500; color: var(--sec); }
+  .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--blue); }
+
+  .disc { border-radius: 12px; box-shadow: inset 0 0 0 1.5px var(--y); text-align: left; }
+  .disc-head { width: 100%; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; border: 0; background: none; cursor: pointer; font-size: 16px; line-height: 22px; font-weight: 500; color: var(--ink); text-align: left; border-radius: 12px; }
+  .disc-head span { flex: 1; }
+  .disc-body { padding: 4px 16px 16px; animation: fade .2s; }
+
+  .okmark .ring { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .55s ease-out .15s forwards; }
+  .okmark .tick { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .35s ease-out .65s forwards; }
+  .toast { position: absolute; left: 16px; right: 16px; bottom: 104px; background: var(--ink); color: var(--white); padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 20px; animation: up .2s; z-index: 5; }
+
+  /* bottom sheet (in-page confirmation) */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 6; animation: fade .15s; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: 20px 20px 0 0; padding: 24px 16px 24px; z-index: 7; display: flex; flex-direction: column; gap: 12px; animation: up .2s; }
+  .sheet h3 { font-size: 18px; line-height: 24px; font-weight: 600; padding: 0 8px; }
+  .sheet p { font-size: 15px; line-height: 21px; color: var(--sec); padding: 0 8px 4px; }
+
+  /* simulated system settings */
+  .sys { background: var(--sysBg); }
+  .sys header.bar { background: var(--sysBg); border-bottom: 0; }
+  .sys .banner { margin: 0 16px; padding: 8px 12px; border-radius: 10px; background: var(--sysChip); color: var(--sec); font-size: 12px; line-height: 16px; }
+  .sys .group { margin: 16px; background: var(--white); border-radius: 12px; overflow: hidden; }
+  .sys .gt { margin: 16px 32px -8px; font-size: 13px; color: var(--sec); }
+  .net { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 0; background: var(--white); cursor: pointer; text-align: left; font-size: 16px; line-height: 22px; color: var(--ink); }
+  .net + .net { border-top: 1px solid var(--line); }
+  .net:hover { background: #FAFAFC; }
+  .net .grow small { display: block; font-size: 12px; line-height: 16px; color: var(--sec); }
+
+  /* scenario picker */
+  .picks { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .pick { height: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--white); font-size: 17px; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .pick:hover { background: var(--soft); }
+  .small { font-size: 13px; line-height: 18px; color: var(--ter); }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone" aria-live="polite"></div>
+
+<script>
+// Icons: Lucide, MIT
+const P = {
+  "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+  "circle-help": '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  "wifi": '<path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/>',
+  "wifi-off": '<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>',
+  "lock": '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  "eye": '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  "eye-off": '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
+  "circle-check": '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  "circle-x": '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  "circle": '<circle cx="12" cy="12" r="10"/>',
+  "loader-circle": '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  "triangle-alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+  "chevron-up": '<path d="m18 15-6-6-6 6"/>',
+  "lightbulb": '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  "external-link": '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  "check": '<path d="M20 6 9 17l-5-5"/>',
+};
+const ic = (n, c = "currentColor", s = 24, cls = "") =>
+  `<svg class="${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${s >= 40 ? 1.25 : 1.75}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+const C = { ink: "#1F1F1F", sec: "#6E6E73", ter: "#A1A1A6", ok: "#1E9E5A", err: "#D93025", amb: "#D98200", y: "#E0A800", pend: "#C7C7CC", blue: "#2F80ED" };
+const SSID = { "24": "Home_WiFi", "5": "Home_WiFi_5G" };
+
+// Scenarios (moderator tells the participant which one to tap):
+// 1 — phone on 5 GHz, start at the Wi-Fi step; success only after switching to 2.4 GHz.
+// 2 — phone on 2.4 GHz, first attempt fails at stage 2, any retry succeeds.
+// 3 — start directly on the "5 GHz not supported" error.
+const S = { scen: null, net: "5", firstFail: false, scr: "pick", hist: [], disc: false,
+  pass: "home2024wifi", showPass: false, stages: null, phase: null, toast: null, sheet: false };
+let timers = [], lastScr = null, dir = "fwd", toastTimer = null;
+
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function go(scr) { S.hist.push(S.scr); dir = "fwd"; enter(scr); }
+function back() {
+  if (!S.hist.length) { toast("Это первый шаг подключения."); return; }
+  dir = "bwd"; enter(S.hist.pop());
+}
+function enter(scr) {
+  clearTimers(); S.toast = null; S.sheet = false;
+  if (scr !== "c1") S.disc = false;
+  S.scr = scr;
+  if (scr === "progress") startProgress();
+  render();
+}
+function toast(msg) {
+  S.toast = msg; render();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { S.toast = null; render(); }, 2600);
+}
+function startScenario(n) {
+  clearTimers(); S.scen = n; S.hist = []; S.disc = false; S.showPass = false; S.pass = "home2024wifi"; dir = "fwd";
+  if (n === 1) { S.net = "5"; S.firstFail = false; enter("wifi"); }
+  if (n === 2) { S.net = "24"; S.firstFail = true; enter("wifi"); }
+  if (n === 3) { S.net = "5"; S.firstFail = false; enter("c1"); }
+}
+
+function startProgress() {
+  const fail = S.net === "5" || S.firstFail;
+  S.stages = ["active", "pending", "pending"]; S.phase = "run";
+  timers.push(setTimeout(() => { S.stages = ["done", "active", "pending"]; render(); }, 1500));
+  timers.push(setTimeout(() => {
+    if (fail) { S.stages = ["done", "error", "pending"]; S.phase = "fail"; if (S.net === "24") S.firstFail = false; }
+    else S.stages = ["done", "done", "active"];
+    render();
+  }, 3600));
+  if (!fail) {
+    timers.push(setTimeout(() => { S.stages = ["done", "done", "done"]; S.phase = "done"; render(); }, 5200));
+    timers.push(setTimeout(() => { S.hist = []; go("success"); }, 6000));
+  }
+}
+
+const header = (title = "Добавление устройства", withBack = true) => `
+  <header class="bar">
+    ${withBack ? `<button class="iconbtn" data-a="back" aria-label="Назад">${ic("chevron-left", C.ink)}</button>` : `<span style="width:44px;flex:none"></span>`}
+    <h1>${title}</h1>
+    <button class="iconbtn" data-a="help" aria-label="Справка">${ic("circle-help", C.ter)}</button>
+  </header>`;
+const steps = (items, title) => `
+  <div class="steps">${title ? `<h3>${title}</h3>` : ""}
+    ${items.map((it, i) => `<div class="step"><div class="num">${i + 1}</div><div>${Array.isArray(it) ? `<b>${it[0]}</b><span class="s">${it[1]}</span>` : it}</div></div>`).join("")}
+  </div>`;
+const netRow = ok => `
+  <div class="row">
+    ${ic("wifi", C.sec, 20)}
+    <div class="grow"><div class="lbl">Сеть телефона</div><div class="val">${SSID[S.net]}</div></div>
+    <span class="chip ${ok ? "ok" : "warn"}">${ok ? "2,4 ГГц" : "5 ГГц"}</span>
+  </div>`;
+
+const screens = {
+  pick() {
+    return `<div class="body center" style="justify-content:center;gap:24px">
+        <div class="hero">${ic("lightbulb", C.ink, 48)}</div>
+        <h2>Прототип подключения умной лампы</h2>
+        <p class="lead">Выберите сценарий, который назовёт ведущий.</p>
+        <div class="picks">
+          <button class="pick" data-a="scen" data-n="1">Сценарий 1</button>
+          <button class="pick" data-a="scen" data-n="2">Сценарий 2</button>
+          <button class="pick" data-a="scen" data-n="3">Сценарий 3</button>
+        </div>
+        <p class="small">Это учебный прототип: экраны и настройки телефона имитированы.</p>
+      </div>`;
+  },
+
+  wifi() {
+    if (S.net === "24") {
+      const can = S.pass.length >= 8;
+      return `${header()}
+      <div class="body center">
+        <div class="hero">${ic("wifi", C.ink, 48)}</div>
+        <h2>Подключение к Wi-Fi</h2>
+        <p class="lead">Лампа подключится к той же сети, что и телефон. Пароль от сети уже введён.</p>
+        <div class="card" style="width:100%">
+          ${netRow(true)}
+          <div class="row">
+            ${ic("lock", C.sec, 20)}
+            <label class="grow" for="pass"><div class="lbl">Пароль Wi-Fi</div>
+              <input class="val" id="pass" type="${S.showPass ? "text" : "password"}" value="${S.pass}" autocomplete="off"></label>
+            <button class="iconbtn" style="width:32px;height:32px" data-a="eye" aria-label="${S.showPass ? "Скрыть пароль" : "Показать пароль"}">${ic(S.showPass ? "eye-off" : "eye", C.sec, 20)}</button>
+          </div>
+        </div>
+        <div class="status" style="align-self:flex-start">${ic("circle-check", C.ok, 18)}Сеть подходит для лампы</div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="cont" data-a="toPrep" ${can ? "" : "disabled"}>Продолжить</button>
+      </div>`;
+    }
+    return `${header()}
+      <div class="body">
+        <h2>Подключение к Wi-Fi</h2>
+        <div class="card">${netRow(false)}</div>
+        <div class="notice">${ic("triangle-alert", C.amb, 20)}<div><b>Эта сеть 5 ГГц — лампа к ней не подключится</b><p>Лампа работает только в сетях 2,4 ГГц. Подключите телефон к такой сети и вернитесь сюда.</p></div></div>
+        ${steps(["Нажмите «Выбрать сеть 2,4 ГГц» — откроются настройки Wi-Fi телефона.", "Выберите сеть того же роутера без «5G» в названии.", "Вернитесь в приложение."], "Как переключиться")}
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-a="settings">Выбрать сеть 2,4 ГГц ${ic("external-link", C.ink, 20)}</button>
+        <button class="link" data-a="anyway">Всё равно продолжить</button>
+      </div>
+      ${S.sheet ? `<div class="scrim" data-a="closeSheet"></div>
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetT">
+          <h3 id="sheetT">Продолжить в сети 5 ГГц?</h3>
+          <p>Скорее всего, лампа не подключится: она работает только в сетях 2,4 ГГц.</p>
+          <button class="btn primary" data-a="settings">Выбрать сеть 2,4 ГГц</button>
+          <button class="btn secondary" data-a="toPrep">Всё равно продолжить</button>
+        </div>` : ""}`;
+  },
+
+  settings() {
+    const nets = [["24", SSID["24"]], ["5", SSID["5"]]];
+    return `<header class="bar"><button class="iconbtn" data-a="back" aria-label="Назад">${ic("chevron-left", C.ink)}</button><h1>Wi-Fi</h1><span style="width:44px"></span></header>
+      <div class="banner">Имитация настроек телефона</div>
+      <div class="gt">Доступные сети</div>
+      <div class="group">
+        ${nets.map(([k, name]) => `<button class="net" data-a="pickNet" data-net="${k}">
+          ${ic("wifi", C.ink, 20)}<span class="grow">${name}<small>${S.net === k ? "Подключено" : "Защищённая сеть"}</small></span>
+          ${S.net === k ? ic("check", C.blue, 20) : ""}</button>`).join("")}
+        <button class="net" data-a="pickOther">${ic("wifi", C.ter, 20)}<span class="grow" style="color:var(--sec)">TP-Link_3F1A<small>Защищённая сеть</small></span></button>
+      </div>
+      <div style="flex:1"></div>
+      <div class="actions"><button class="btn primary" data-a="backToApp">Вернуться в приложение</button></div>`;
+  },
+
+  prep() {
+    return `${header()}
+      <div class="body center" style="padding-top:40px">
+        <div class="device">${ic("lightbulb", C.ink, 56)}<div class="blinkbar"></div>
+          <div class="hint"><span class="dot"></span>Быстро мигает синим — лампа готова</div></div>
+        <h2>Подготовьте лампу к подключению</h2>
+        <p class="lead">Трижды включите и выключите лампу. Когда она будет готова, начнёт быстро мигать синим.</p>
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-a="toProgress">Быстро мигает</button>
+        <button class="btn secondary" data-a="toReset">Лампа не мигает / мигает иначе</button>
+      </div>`;
+  },
+
+  reset() {
+    return `${header()}
+      <div class="body">
+        <h2>Сбросьте лампу</h2>
+        <p class="lead">Если лампа не мигает или мигает медленно, она не в режиме подключения. Сброс вернёт её в этот режим.</p>
+        <div class="card pad">${steps(["Выключите лампу выключателем и подождите 5 секунд.", "Трижды подряд включите и выключите лампу — примерно по секунде на каждое положение.", "Оставьте лампу включённой. Она начнёт быстро мигать синим."])}</div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-a="toProgress">Лампа мигает быстро</button>
+        <button class="link" data-a="support">Позвонить в поддержку</button>
+      </div>`;
+  },
+
+  progress() {
+    const names = ["Поиск лампы", "Передача настроек Wi-Fi", "Регистрация в облаке"];
+    const desc = {
+      0: { active: "Ищем лампу рядом…", done: "Лампа найдена" },
+      1: { active: `Передаём лампе данные сети «${SSID[S.net]}»…`, done: "Лампа подключилась к Wi-Fi", error: "Лампа не получила настройки сети", pending: "Ожидает" },
+      2: { active: "Добавляем лампу в ваш аккаунт…", done: "Лампа добавлена", pending: S.phase === "fail" ? "Не выполнялась" : "Ожидает" },
+    };
+    const icon = k => k === "done" ? ic("circle-check", C.ok) : k === "error" ? ic("circle-x", C.err) : k === "active" ? ic("loader-circle", C.y, 24, "spin") : ic("circle", C.pend);
+    const head = S.phase === "fail" ? ["Подключение прервано", "Лампа найдена, но не получила настройки Wi-Fi."]
+      : S.phase === "done" ? ["Почти готово", "Все этапы пройдены."]
+      : ["Подключаем лампу", "Обычно это занимает до двух минут. Держите телефон рядом с лампой."];
+    return `${header()}
+      <div class="body">
+        <h2>${head[0]}</h2><p class="lead">${head[1]}</p>
+        <div class="stages">${S.stages.map((k, i) => `<div class="st ${k}">${icon(k)}<div><div class="t">${i + 1}. ${names[i]}</div><div class="d">${desc[i][k] || "Ожидает"}</div></div></div>`).join("")}</div>
+      </div>
+      ${S.phase === "fail" ? `<div class="actions"><button class="btn primary" data-a="toError">Что делать</button></div>` : ""}`;
+  },
+
+  success() {
+    return `${header("Добавление устройства", false)}
+      <div class="body center" style="justify-content:center;padding-bottom:40px">
+        <div class="hero">
+          <svg class="okmark" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="${C.ok}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle class="ring" cx="12" cy="12" r="10" pathLength="1"/><path class="tick" d="m8.5 12 2.5 2.5 4.5-5" pathLength="1"/>
+          </svg>
+        </div>
+        <h2>Лампа подключена</h2>
+        <p class="lead">Она появилась на главном экране в разделе «Без комнаты» — ею уже можно управлять.</p>
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-a="done">Готово</button>
+      </div>`;
+  },
+
+  done() {
+    return `<div class="body center" style="justify-content:center;gap:16px">
+        <div class="hero">${ic("circle-check", C.ok, 56)}</div>
+        <h2>Сценарий ${S.scen} завершён</h2>
+        <p class="lead">Спасибо! Расскажите ведущему, как всё прошло.</p>
+      </div>
+      <div class="actions"><button class="btn secondary" data-a="toPick">К выбору сценария</button></div>`;
+  },
+
+  c1() {
+    return `${header()}
+      <div class="body">
+        ${S.disc ? "" : `<div class="hero">${ic("wifi-off", C.amb, 48)}</div>`}
+        <h2>Лампа не поддерживает сеть 5 ГГц</h2>
+        <p class="lead">Телефон подключён к «${SSID["5"]}». Лампа работает только в сетях 2,4 ГГц — переключите телефон на такую сеть и повторите.</p>
+        <div class="disc">
+          <button class="disc-head" data-a="disc" aria-expanded="${S.disc}"><span>Как найти сеть 2,4 ГГц?</span>${ic(S.disc ? "chevron-up" : "chevron-down", C.ink, 20)}</button>
+          ${S.disc ? `<div class="disc-body">${steps(["Откройте список сетей Wi-Fi на телефоне.", "Выберите сеть того же роутера без «5G» в названии.", "У роутера одна сеть на оба диапазона? Временно отключите 5 ГГц в настройках роутера, подключите лампу и включите 5 ГГц обратно."])}</div>` : ""}
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-a="settings">Переключиться на 2,4 ГГц ${ic("external-link", C.ink, 20)}</button>
+        <button class="link" data-a="toProgress">Повторить без изменений</button>
+      </div>`;
+  },
+
+  c2() {
+    return `${header()}
+      <div class="body">
+        <h2>Не удалось подключить лампу</h2>
+        <div class="stage-chip">${ic("circle-x", C.err, 20)}Сбой на этапе: передача настроек Wi-Fi</div>
+        <p class="lead">Попробуйте по порядку — после каждого шага можно повторить подключение.</p>
+        ${steps([["Сбросьте лампу", "Трижды включите и выключите её, пока она не начнёт быстро мигать синим."], ["Проверьте пароль Wi-Fi", "Вернитесь к шагу Wi-Fi и нажмите на значок глаза, чтобы увидеть введённый пароль."], ["Очистите данные приложения", "В настройках телефона откройте это приложение → Хранилище → Очистить данные."]])}
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-a="retry">Попробовать снова</button>
+        <button class="link" data-a="support">Позвонить в поддержку</button>
+      </div>`;
+  },
+};
+
+const phone = document.getElementById("phone");
+function render() {
+  const anim = lastScr !== S.scr ? dir : "";
+  lastScr = S.scr;
+  const sys = S.scr === "settings";
+  phone.innerHTML = `<div class="screen ${anim} ${sys ? "sys" : ""}">${screens[S.scr]()}</div>${S.toast ? `<div class="toast" role="status">${S.toast}</div>` : ""}`;
+  const pass = document.getElementById("pass");
+  if (pass) pass.addEventListener("input", e => { S.pass = e.target.value; document.getElementById("cont").disabled = S.pass.length < 8; });
+}
+
+phone.addEventListener("click", e => {
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const act = {
+    back, help: () => toast("Справка недоступна в прототипе."),
+    scen: () => startScenario(+el.dataset.n),
+    eye: () => { S.showPass = !S.showPass; render(); },
+    toPrep: () => go("prep"),
+    anyway: () => { S.sheet = true; render(); },
+    closeSheet: () => { S.sheet = false; render(); },
+    settings: () => go("settings"),
+    pickNet: () => { S.net = el.dataset.net; render(); },
+    pickOther: () => toast("Это чужая сеть — выберите сеть своего роутера."),
+    backToApp: () => { S.hist = []; dir = "bwd"; enter("wifi"); },
+    toReset: () => go("reset"),
+    toProgress: () => go("progress"),
+    toError: () => go(S.net === "5" ? "c1" : "c2"),
+    disc: () => { S.disc = !S.disc; render(); },
+    retry: () => go("progress"),
+    support: () => toast("Здесь откроется звонок в поддержку (имитация)."),
+    done: () => { S.hist = []; go("done"); },
+    toPick: () => { clearTimers(); S.hist = []; dir = "bwd"; enter("pick"); },
+  }[el.dataset.a];
+  if (act) act();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet) { S.sheet = false; render(); } });
+render();
+</script>
+</body>
+</html>
